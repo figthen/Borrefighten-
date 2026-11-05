@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="sv"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fiskeserien</title>
+<title>Borrefighten</title>
 <style>
 :root{--bg:#f3f7f6;--card:#fff;--tx:#14262b;--mut:#5b6e73;--ac:#0f766e;--ac2:#e2f2ef;--bd:#d6e1df;--gold:#b7791f;color-scheme:light}
 @media (prefers-color-scheme:dark){:root{--bg:#0d1a1d;--card:#15262a;--tx:#e8f1f0;--mut:#93a8ac;--ac:#2dd4bf;--ac2:#173a38;--bd:#27403f;--gold:#f6c453;color-scheme:dark}}
@@ -29,7 +29,7 @@ nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);b
 nav button{margin:0;border-radius:0;background:none;color:var(--mut);font-size:12px;line-height:1.3;padding:8px 2px}
 nav button.on{color:var(--ac);box-shadow:inset 0 2px 0 var(--ac)}
 </style></head><body>
-<h1>🎣 Fiskeserien</h1>
+<h1>🎣 Borrefighten</h1>
 <div id="v"></div>
 <nav id="n"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -181,7 +181,7 @@ function vCatch(){
   if(!mine.length)return '<div class="card">Gå med i en tävling i fliken Tävlingar först.</div>';
   return `<div class="card"><h2>Registrera fångst</h2>
   <label>Tävling</label><select id="kc">${mine.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
-  <div class="row"><div><label>Art</label><input id="ks" placeholder="Gädda"></div><div><label>Längd (cm)</label><input id="kl" type="number" inputmode="numeric"></div></div>
+  <div class="row"><div><label>Art</label><input id="ks" value="Abborre"></div><div><label>Längd (cm)</label><input id="kl" type="number" inputmode="numeric"></div></div>
   <p class="mut">Ha tävlingens kod (se fliken Tävlingar) synlig i bilden tillsammans med fisken.</p>
   <label>Foto på fångsten (krävs)</label><input id="kp" type="file" accept="image/*" capture="environment" onchange="gotPhoto(this)">
   <div id="km" class="mut" style="margin-top:6px">Ingen bild vald.</div>
@@ -206,6 +206,9 @@ async function addCatch(){
   const c=$('kc').value,m=D.mem.find(x=>x.competition_id==c),l=+$('kl').value,e=$('ke');
   if(!l){e.textContent='Ange längd.';return}
   if(!pend){e.textContent='Lägg upp en bild på fångsten.';return}
+  const cp=D.comps.find(x=>x.id==c),now=Date.now();
+  if(now<new Date(cp.starts_at)){e.textContent='Tävlingen har inte startat än ('+fmt(cp.starts_at)+').';return}
+  if(now>new Date(cp.ends_at)){e.textContent='Tävlingen är slut ('+fmt(cp.ends_at)+').';return}
   e.textContent='Sparar …';
   const path=c+'/'+crypto.randomUUID()+'.jpg';
   const up=await sb.storage.from('catch-photos').upload(path,pend.blob,{contentType:'image/jpeg'});

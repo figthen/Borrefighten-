@@ -42,10 +42,10 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'});
 const COL=['#0f766e','#d97706','#7c3aed','#dc2626','#2563eb','#db2777'];
-const tabs=[['serie','🏆<br>Serie'],['comps','📅<br>Tävlingar'],['catch','🐟<br>Fångst'],['feed','📍<br>Flöde'],['teams','👥<br>Lag']];
+const tabs=[['serie','🏆<br>Serie'],['comps','📅<br>Tävlingar'],['teams','👥<br>Lag']];
 const SETUP=SUPABASE_URL.startsWith('DIN_');
 const sb=SETUP?null:window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let me=null,tab='serie',cur=null,fc=null,fmode='list',delId=null,pend=null,live=false;
+let me=null,tab='serie',cur=null,openComp=null,csub='report',delId=null,pend=null,live=false;
 let D={comps:[],teams:[],series:[],sc:[],mem:[],scores:[],catches:[],err:''};
 const teamName=id=>(D.teams.find(t=>t.id==id)||{}).name||'?';
 const photoUrl=p=>sb.storage.from('catch-photos').getPublicUrl(p).data.publicUrl;
@@ -85,15 +85,15 @@ async function load(){
   D={comps:c.data||[],teams:t.data||[],series:s.data||[],sc:sc.data||[],mem:m.data||[],scores:sco.data||[],catches:ca.data||[],
      err:(rs.find(r=>r.error)||{error:{message:''}}).error?.message||''};
   if(!D.series.find(x=>x.id==cur))cur=D.series[0]?.id||null;
-  if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},()=>{if(tab==='feed'||tab==='serie')load()}).subscribe()}
+  if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},()=>{if(tab==='serie'||(tab==='comps'&&openComp&&csub!=='report'))load()}).subscribe()}
   render();
 }
 function render(){
   if(SETUP)return;
   if(!me){$('v').innerHTML=vAuth();$('n').innerHTML='';return}
-  if(tab!=='catch')pend=null;
+  if(!(tab==='comps'&&openComp&&csub==='report'))pend=null;
   $('v').innerHTML=(D.err?`<div class="card err">${esc(D.err)}</div>`:'')+{serie:vSerie,comps:vComps,catch:vCatch,feed:vFeed,teams:vTeams}[tab]();
-  $('n').innerHTML=tabs.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="tab='${t[0]}';render()">${t[1]}</button>`).join('');
+  $('n').innerHTML=tabs.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="tab='${t[0]}';openComp=null;render()">${t[1]}</button>`).join('');
   fillCodes();
 }
 async function fillCodes(){
@@ -147,8 +147,33 @@ async function togComp(cid,on){
 }
 
 // ---- Tävlingar ----
-let openComp=null;
-function vComps(){
+function vComps(){return openComp&&D.comps.find(c=>c.id==openComp)?vCompPage():vCompList()}
+function vJoin(){
+  const c=D.comps.find(x=>x.id==openComp);
+  return D.teams.length?`<div class="card"><h2>Gå med i ${esc(c.name)}</h2><label>Lag</label><select id="jt-${c.id}">${D.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select><button onclick="joinC('${c.id}')">Gå med</button></div>`:'<div class="card">Skapa ett lag i fliken Lag först.</div>';
+}
+function vBoard(c){
+  const rows=D.scores.filter(x=>x.competition_id==c.id).sort((a,b)=>b.score-a.score);
+  return `<div class="card"><h2>Ställning i tävlingen</h2><div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score}${c.metric=='length'?' cm':''}</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div></div>`;
+}
+function adminBox(c){
+  return `<div class="card"><h2>Admin 🛡️</h2>${delId==='comp'+c.id?`<p class="mut">Tar bort tävlingen med alla fångster. Det går inte att ångra.</p><button style="background:#c0392b;color:#fff" onclick="delComp('${c.id}')">Ja, ta bort tävlingen</button><button class="sec" onclick="delId=null;render()">Avbryt</button>`:`<button class="sec" onclick="delId='comp${c.id}';render()">🗑 Ta bort tävlingen</button>`}</div>`;
+}
+async function delComp(id){
+  const r=await sb.rpc('delete_competition',{c:id});
+  if(r.error){alert(r.error.message);return}
+  openComp=null;delId=null;await load();
+}
+function vCompPage(){
+  const c=D.comps.find(x=>x.id==openComp),m=D.mem.find(x=>x.competition_id==c.id),admin=c.created_by===me.id;
+  const subs=[['report','Rapportera'],['feed','Flöde'],['map','Karta'],['board','Ställning']];
+  const body=csub=='report'?vCatch():(csub=='feed'||csub=='map')?vFeed():vBoard(c);
+  return `<div class="card"><button class="sec" style="margin-top:0" onclick="openComp=null;render()">← Alla tävlingar</button>
+  <h2 style="margin-top:12px">${esc(c.name)} ${admin?'🛡️':''}</h2><div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · ${c.metric=='length'?'total längd':'antal fiskar'}</div>
+  <div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}
+  <div class="row">${subs.map(s=>`<button class="${csub==s[0]?'':'sec'}" style="padding:9px 2px;font-size:13px" onclick="csub='${s[0]}';render()">${s[1]}</button>`).join('')}</div></div>${body}${admin?adminBox(c):''}`;
+}
+function vCompList(){
   const opts=D.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
   return `<div class="card"><h2>Ny tävling</h2><label>Namn</label><input id="cn">
   <label>Start</label><input type="datetime-local" id="cs"><label>Slut</label><input type="datetime-local" id="ce">
@@ -157,7 +182,7 @@ function vComps(){
   <p class="mut">Du blir admin för tävlingen och kan ta bort fångster.</p></div>
   <div class="card"><h2>Tävlingar</h2>${D.comps.map(c=>{
     const m=D.mem.find(x=>x.competition_id==c.id),rows=D.scores.filter(x=>x.competition_id==c.id).sort((a,b)=>b.score-a.score);
-    return `<div class="item" onclick="openComp=${openComp==c.id?'null':`'${c.id}'`};render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · ${c.metric=='length'?'cm':'antal'}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">${openComp==c.id?'▲':'▼'}</span></div>
+    return `<div class="item" onclick="openComp='${c.id}';csub='report';render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · ${c.metric=='length'?'cm':'antal'}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>
     ${openComp==c.id?`<div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score}</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div>
     ${m?'':(D.teams.length?`<label>Gå med som lag</label><select id="jt-${c.id}">${opts}</select><button onclick="joinC('${c.id}')">Gå med</button>`:'<p class="mut">Skapa ett lag i fliken Lag först.</p>')}`:''}`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
 }
@@ -177,10 +202,9 @@ async function joinC(id){
 
 // ---- Fångst ----
 function vCatch(){
-  const mine=D.comps.filter(c=>D.mem.some(m=>m.competition_id==c.id));
-  if(!mine.length)return '<div class="card">Gå med i en tävling i fliken Tävlingar först.</div>';
+  if(!D.mem.some(m=>m.competition_id==openComp))return vJoin();
   return `<div class="card"><h2>Registrera fångst</h2>
-  <label>Tävling</label><select id="kc">${mine.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+  <input type="hidden" id="kc" value="${openComp}">
   <div class="row"><div><label>Art</label><input id="ks" value="Abborre"></div><div><label>Längd (cm)</label><input id="kl" type="number" inputmode="numeric"></div></div>
   <p class="mut">Ha tävlingens kod (se fliken Tävlingar) synlig i bilden tillsammans med fisken.</p>
   <label>Foto på fångsten (krävs)</label><input id="kp" type="file" accept="image/*" capture="environment" onchange="gotPhoto(this)">
@@ -215,7 +239,7 @@ async function addCatch(){
   if(up.error){e.textContent=up.error.message;return}
   const r=await sb.from('catches').insert({competition_id:c,team_id:m.team_id,species:$('ks').value||'Fisk',length_cm:l,photo_path:path,lat:pend.loc?.lat??null,lon:pend.loc?.lon??null});
   if(r.error){e.textContent=r.error.message;return}
-  pend=null;tab='feed';fc=c;await load();
+  pend=null;csub='feed';await load();
 }
 
 // ---- Flöde och karta ----
@@ -242,22 +266,24 @@ async function doDel(id){
   delId=null;await load();
 }
 function vFeed(){
-  if(!D.comps.length)return '<div class="card">Skapa en tävling först.</div>';
-  if(!D.comps.find(c=>c.id==fc))fc=D.comps[0].id;
-  const comp=D.comps.find(c=>c.id==fc),admin=comp.created_by===me.id;
+  const fc=openComp,comp=D.comps.find(c=>c.id==fc),admin=comp.created_by===me.id;
   const list=D.catches.filter(x=>x.competition_id==fc);
-  const head=`<div class="card"><label>Tävling</label><select onchange="fc=this.value;render()">${D.comps.map(c=>`<option value="${c.id}" ${c.id==fc?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-  <div class="mut" style="margin-top:6px" data-code="${fc}"></div>
-  <div class="row"><button class="${fmode=='list'?'':'sec'}" onclick="fmode='list';render()">Flöde</button><button class="${fmode=='map'?'':'sec'}" onclick="fmode='map';render()">Karta</button></div></div>`;
-  if(fmode=='map')return head+`<div class="card"><h2>Fångstkarta</h2>${mapSvg(list)}</div>`;
+  const head='';
+  if(csub=='map')return `<div class="card"><h2>Fångstkarta</h2>${mapSvg(list)}</div>`;
   return head+(list.map(x=>`<div class="card" style="display:flex;gap:12px;${x.removed_at?'opacity:.55':''}"><a href="${photoUrl(x.photo_path)}" target="_blank"><img src="${photoUrl(x.photo_path)}" alt="" style="width:96px;height:96px;flex:none;border-radius:10px;object-fit:cover"></a><div><b>${esc(teamName(x.team_id))}</b><div style="font-size:20px;font-weight:700;color:var(--ac)">${+x.length_cm} cm</div><div class="mut">${esc(x.species)}<br>${fmt(x.created_at)}</div>${x.lat!=null?`<div class="mut">📍 <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=15/${x.lat}/${x.lon}">Visa plats</a></div>`:''}${x.removed_at?`<div class="err">Borttagen: ${esc(x.removed_reason||'ingen anledning angiven')}</div>`:(admin?delBtn(x):'')}</div></div>`).join('')||'<div class="card mut">Inga fångster än.</div>');
 }
 
 // ---- Lag ----
 function vTeams(){
-  return `<div class="card"><h2>Lag</h2>${D.teams.map(t=>`<div class="item"><span>${esc(t.name)}</span></div>`).join('')||'<p class="mut">Inga lag än.</p>'}
+  return `<div class="card"><h2>Lag</h2>${D.teams.map(t=>`<div class="item" style="align-items:center"><span>${esc(t.name)}</span>${t.created_by!==me.id?'':(delId==='team'+t.id?`<span><button style="width:auto;margin:0;padding:6px 10px;background:#c0392b;color:#fff" onclick="delTeam('${t.id}')">Bekräfta</button> <button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId=null;render()">Avbryt</button></span>`:`<button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId='team${t.id}';render()">🗑</button>`)}</div>`).join('')||'<p class="mut">Inga lag än.</p>'}
+  <p class="mut">Du kan ta bort lag du själv skapat. Lagets fångster och anmälningar tas bort samtidigt.</p>
   <label>Nytt lag</label><input id="tn"><button onclick="addTeam()">Lägg till lag</button><div id="te" class="err"></div></div>
   <div class="card"><p class="mut">Inloggad som ${esc(me.user_metadata?.name||me.email)}</p><button class="sec" onclick="logout()">Logga ut</button></div>`;
+}
+async function delTeam(id){
+  const r=await sb.rpc('delete_team',{t:id});
+  if(r.error){alert(r.error.message);return}
+  delId=null;await load();
 }
 async function addTeam(){
   const name=$('tn').value.trim();if(!name)return;

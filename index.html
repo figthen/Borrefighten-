@@ -29,7 +29,7 @@ nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);b
 nav button{margin:0;border-radius:0;background:none;color:var(--mut);font-size:12px;line-height:1.3;padding:8px 2px}
 nav button.on{color:var(--ac);box-shadow:inset 0 2px 0 var(--ac)}
 </style></head><body>
-<h1>🎣 Borrefighten</h1>
+<h1 id="ttl">🎣 Borrefighten</h1>
 <div id="v"></div>
 <nav id="n"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,6 +47,7 @@ const SETUP=SUPABASE_URL.startsWith('DIN_');
 const sb=SETUP?null:window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me=null,tab='serie',cur=null,openComp=null,csub='report',delId=null,pend=null,live=false;
 let D={comps:[],teams:[],series:[],sc:[],mem:[],scores:[],catches:[],err:''};
+const myTeam=()=>D.teams.find(t=>t.created_by===me.id);
 const teamName=id=>(D.teams.find(t=>t.id==id)||{}).name||'?';
 const photoUrl=p=>sb.storage.from('catch-photos').getPublicUrl(p).data.publicUrl;
 
@@ -59,7 +60,7 @@ async function boot(){
 }
 function vAuth(){
   return `<div class="card"><h2>Logga in</h2>
-  <label>Namn (bara när du skapar konto)</label><input id="an" autocomplete="name">
+  <label>Lagnamn (bara när du skapar konto)</label><input id="an">
   <label>E-post</label><input id="ae" type="email" autocomplete="email">
   <label>Lösenord (minst 6 tecken)</label><input id="ap" type="password" autocomplete="current-password">
   <button onclick="login(false)">Logga in</button><button class="sec" onclick="login(true)">Skapa konto</button>
@@ -67,7 +68,7 @@ function vAuth(){
 }
 async function login(up){
   const email=$('ae').value.trim(),password=$('ap').value,name=$('an').value.trim(),e=$('aerr');
-  if(up&&!name){e.textContent='Skriv ditt namn.';return}
+  if(up&&!name){e.textContent='Skriv ett lagnamn.';return}
   const r=up?await sb.auth.signUp({email,password,options:{data:{name}}}):await sb.auth.signInWithPassword({email,password});
   if(r.error){e.textContent=r.error.message;return}
   if(!r.data.session){e.textContent='Konto skapat. Bekräfta mejlet och logga in.';return}
@@ -84,6 +85,13 @@ async function load(){
   const [c,t,s,sc,m,sco,ca]=rs;
   D={comps:c.data||[],teams:t.data||[],series:s.data||[],sc:sc.data||[],mem:m.data||[],scores:sco.data||[],catches:ca.data||[],
      err:(rs.find(r=>r.error)||{error:{message:''}}).error?.message||''};
+  if(!D.teams.some(t=>t.created_by===me.id)){   // varje konto är ett lag: skapa det automatiskt
+    const nm=me.user_metadata?.name||me.email.split('@')[0];
+    let r=await sb.from('teams').insert({name:nm});
+    if(r.error)r=await sb.from('teams').insert({name:nm+' '+Math.floor(Math.random()*900+100)});
+    if(r.error)D.err=r.error.message;
+    else D.teams=(await sb.from('teams').select('*').order('name')).data||[];
+  }
   if(!D.series.find(x=>x.id==cur))cur=D.series[0]?.id||null;
   if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},()=>{if(tab==='serie'||(tab==='comps'&&openComp&&csub!=='report'))load()}).subscribe()}
   render();
@@ -93,6 +101,8 @@ function render(){
   if(!me){$('v').innerHTML=vAuth();$('n').innerHTML='';return}
   if(!(tab==='comps'&&openComp&&csub==='report'))pend=null;
   $('v').innerHTML=(D.err?`<div class="card err">${esc(D.err)}</div>`:'')+{serie:vSerie,comps:vComps,catch:vCatch,feed:vFeed,teams:vTeams}[tab]();
+  const inComp=tab==='comps'&&openComp&&D.comps.find(c=>c.id==openComp);   // helskärm inne i en tävling
+  $('ttl').style.display=inComp?'none':'';$('n').style.display=inComp?'none':'';
   $('n').innerHTML=tabs.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="tab='${t[0]}';openComp=null;render()">${t[1]}</button>`).join('');
   fillCodes();
 }
@@ -105,14 +115,20 @@ async function fillCodes(){
 }
 
 // ---- Serie ----
+// Fler cm vinner. Vid lika summa avgör största fisken, sedan näst största och så vidare.
+function cmpScore(a,b){
+  if(b.s!==a.s)return b.s-a.s;
+  for(let i=0;i<5;i++){const x=a.top[i]||0,y=b.top[i]||0;if(x!==y)return y-x}
+  return 0;
+}
 function standings(s){
   const ids=D.sc.filter(x=>x.series_id==s.id).map(x=>x.competition_id);
   const cs=D.comps.filter(c=>ids.includes(c.id)&&c.starts_at.slice(0,10)>=s.starts_on&&c.starts_at.slice(0,10)<=s.ends_on)
     .sort((a,b)=>a.starts_at.localeCompare(b.starts_at));
   const per=cs.map(c=>{
-    const b=D.scores.filter(x=>x.competition_id==c.id).map(x=>({t:x.team_id,s:+x.score})).sort((a,b)=>b.s-a.s);
+    const b=D.scores.filter(x=>x.competition_id==c.id).map(x=>({t:x.team_id,s:+x.score,top:(x.top||[]).map(Number)})).sort(cmpScore);
     const out={};let prev=null,pp=0;
-    b.forEach((x,i)=>{const p=x.s===prev?pp:(s.points[i]||0);out[x.t]=p;prev=x.s;pp=p});
+    b.forEach((x,i)=>{const k=x.s+'/'+x.top.join(','),p=k===prev?pp:(s.points[i]||0);out[x.t]=p;prev=k;pp=p});
     return out});
   const rows=D.teams.map(t=>{const p=per.map(o=>o[t.id]||0);return{t:t.name,p,sum:p.reduce((a,b)=>a+b,0)}});
   rows.sort((a,b)=>b.sum-a.sum);
@@ -150,11 +166,11 @@ async function togComp(cid,on){
 function vComps(){return openComp&&D.comps.find(c=>c.id==openComp)?vCompPage():vCompList()}
 function vJoin(){
   const c=D.comps.find(x=>x.id==openComp);
-  return D.teams.length?`<div class="card"><h2>Gå med i ${esc(c.name)}</h2><label>Lag</label><select id="jt-${c.id}">${D.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select><button onclick="joinC('${c.id}')">Gå med</button></div>`:'<div class="card">Skapa ett lag i fliken Lag först.</div>';
+  return myTeam()?`<div class="card"><h2>Gå med i ${esc(c.name)}</h2><p class="mut">Du deltar som ${esc(myTeam().name)}.</p><button onclick="joinC('${c.id}')">Gå med</button></div>`:'<div class="card">Ditt lag skapas, ladda om sidan.</div>';
 }
 function vBoard(c){
-  const rows=D.scores.filter(x=>x.competition_id==c.id).sort((a,b)=>b.score-a.score);
-  return `<div class="card"><h2>Ställning i tävlingen</h2><div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score}${c.metric=='length'?' cm':''}</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div></div>`;
+  const rows=D.scores.filter(x=>x.competition_id==c.id).sort((a,b)=>cmpScore({s:+a.score,top:(a.top||[]).map(Number)},{s:+b.score,top:(b.top||[]).map(Number)}));
+  return `<div class="card"><h2>Ställning i tävlingen</h2><p class="mut">Totala längden på lagets 5 största fiskar. Vid lika avgör största fisken, sedan näst största och så vidare.</p><div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score} cm</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div></div>`;
 }
 function adminBox(c){
   return `<div class="card"><h2>Admin 🛡️</h2>${delId==='comp'+c.id?`<p class="mut">Tar bort tävlingen med alla fångster. Det går inte att ångra.</p><button style="background:#c0392b;color:#fff" onclick="delComp('${c.id}')">Ja, ta bort tävlingen</button><button class="sec" onclick="delId=null;render()">Avbryt</button>`:`<button class="sec" onclick="delId='comp${c.id}';render()">🗑 Ta bort tävlingen</button>`}</div>`;
@@ -169,7 +185,7 @@ function vCompPage(){
   const subs=[['report','Rapportera'],['feed','Flöde'],['map','Karta'],['board','Ställning']];
   const body=csub=='report'?vCatch():(csub=='feed'||csub=='map')?vFeed():vBoard(c);
   return `<div class="card"><button class="sec" style="margin-top:0" onclick="openComp=null;render()">← Alla tävlingar</button>
-  <h2 style="margin-top:12px">${esc(c.name)} ${admin?'🛡️':''}</h2><div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · ${c.metric=='length'?'total längd':'antal fiskar'}</div>
+  <h2 style="margin-top:12px">${esc(c.name)} ${admin?'🛡️':''}</h2><div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · 5 största fiskarna räknas</div>
   <div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}
   <div class="row">${subs.map(s=>`<button class="${csub==s[0]?'':'sec'}" style="padding:9px 2px;font-size:13px" onclick="csub='${s[0]}';render()">${s[1]}</button>`).join('')}</div></div>${body}${admin?adminBox(c):''}`;
 }
@@ -177,25 +193,25 @@ function vCompList(){
   const opts=D.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
   return `<div class="card"><h2>Ny tävling</h2><label>Namn</label><input id="cn">
   <label>Start</label><input type="datetime-local" id="cs"><label>Slut</label><input type="datetime-local" id="ce">
-  <label>Räknas som</label><select id="cm"><option value="length">Total längd (cm)</option><option value="count">Antal fiskar</option></select>
+  <p class="mut">Räknas som totala längden på lagets 5 största fiskar. Vid lika avgör största fisken, sedan näst största och så vidare.</p>
   <button onclick="addComp()">Skapa tävling</button><div id="cerr" class="err"></div>
   <p class="mut">Du blir admin för tävlingen och kan ta bort fångster.</p></div>
   <div class="card"><h2>Tävlingar</h2>${D.comps.map(c=>{
     const m=D.mem.find(x=>x.competition_id==c.id),rows=D.scores.filter(x=>x.competition_id==c.id).sort((a,b)=>b.score-a.score);
-    return `<div class="item" onclick="openComp='${c.id}';csub='report';render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · ${c.metric=='length'?'cm':'antal'}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>
+    return `<div class="item" onclick="openComp='${c.id}';csub='report';render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · 5 största räknas</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>
     ${openComp==c.id?`<div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score}</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div>
     ${m?'':(D.teams.length?`<label>Gå med som lag</label><select id="jt-${c.id}">${opts}</select><button onclick="joinC('${c.id}')">Gå med</button>`:'<p class="mut">Skapa ett lag i fliken Lag först.</p>')}`:''}`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
 }
 async function addComp(){
   const name=$('cn').value.trim(),a=$('cs').value,b=$('ce').value,e=$('cerr');
   if(!name||!a||!b){e.textContent='Fyll i namn, start och slut.';return}
-  const r=await sb.from('competitions').insert({name,starts_at:new Date(a).toISOString(),ends_at:new Date(b).toISOString(),metric:$('cm').value}).select().single();
+  const r=await sb.from('competitions').insert({name,starts_at:new Date(a).toISOString(),ends_at:new Date(b).toISOString(),metric:'length'}).select().single();
   if(r.error){e.textContent=r.error.message;return}
   if(cur&&D.series.find(x=>x.id==cur&&x.created_by===me.id))await sb.from('series_competitions').insert({series_id:cur,competition_id:r.data.id});
   await load();
 }
 async function joinC(id){
-  const r=await sb.rpc('join_competition',{c:id,team:$('jt-'+id).value});
+  const r=await sb.rpc('join_competition',{c:id,team:myTeam().id});
   if(r.error){alert(r.error.message);return}
   await load();
 }
@@ -275,10 +291,10 @@ function vFeed(){
 
 // ---- Lag ----
 function vTeams(){
-  return `<div class="card"><h2>Lag</h2>${D.teams.map(t=>`<div class="item" style="align-items:center"><span>${esc(t.name)}</span>${t.created_by!==me.id?'':(delId==='team'+t.id?`<span><button style="width:auto;margin:0;padding:6px 10px;background:#c0392b;color:#fff" onclick="delTeam('${t.id}')">Bekräfta</button> <button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId=null;render()">Avbryt</button></span>`:`<button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId='team${t.id}';render()">🗑</button>`)}</div>`).join('')||'<p class="mut">Inga lag än.</p>'}
-  <p class="mut">Du kan ta bort lag du själv skapat. Lagets fångster och anmälningar tas bort samtidigt.</p>
-  <label>Nytt lag</label><input id="tn"><button onclick="addTeam()">Lägg till lag</button><div id="te" class="err"></div></div>
-  <div class="card"><p class="mut">Inloggad som ${esc(me.user_metadata?.name||me.email)}</p><button class="sec" onclick="logout()">Logga ut</button></div>`;
+  return `<div class="card"><h2>Lag</h2><p class="mut">Ditt lag: <b>${esc(myTeam()?.name||'')}</b></p>${D.teams.map(t=>`<div class="item" style="align-items:center"><span>${esc(t.name)}</span>${(t.created_by!==me.id||t.id===myTeam().id)?'':(delId==='team'+t.id?`<span><button style="width:auto;margin:0;padding:6px 10px;background:#c0392b;color:#fff" onclick="delTeam('${t.id}')">Bekräfta</button> <button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId=null;render()">Avbryt</button></span>`:`<button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId='team${t.id}';render()">🗑</button>`)}</div>`).join('')||'<p class="mut">Inga lag än.</p>'}
+  <p class="mut">Varje konto är ett lag. Gamla testlag du skapat kan du ta bort med papperskorgen, och då tas lagets fångster och anmälningar bort.</p>
+  </div>
+  <div class="card"><p class="mut">Inloggad som ${esc(me.email)}</p><button class="sec" onclick="logout()">Logga ut</button></div>`;
 }
 async function delTeam(id){
   const r=await sb.rpc('delete_team',{t:id});

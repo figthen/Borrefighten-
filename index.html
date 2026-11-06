@@ -25,6 +25,7 @@ td.t{font-weight:700;color:var(--ac)}
 .item:last-child{border:0}
 .thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;margin-right:10px;vertical-align:middle}
 .err{color:#c0392b;font-size:13px;margin-top:6px}.ok{color:var(--ac);font-size:13px}a{color:var(--ac)}
+summary{cursor:pointer;list-style-position:inside}details[open] summary{margin-bottom:6px}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd)}
 nav button{margin:0;border-radius:0;background:none;color:var(--mut);font-size:12px;line-height:1.3;padding:8px 2px}
 nav button.on{color:var(--ac);box-shadow:inset 0 2px 0 var(--ac)}
@@ -42,7 +43,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'});
 const COL=['#0f766e','#d97706','#7c3aed','#dc2626','#2563eb','#db2777'];
-const tabs=[['serie','🏆<br>Serie'],['comps','📅<br>Tävlingar'],['teams','👥<br>Lag']];
+const tabs=[['serie','🏆<br>Serier'],['teams','👥<br>Lag']];
 const SETUP=SUPABASE_URL.startsWith('DIN_');
 const sb=SETUP?null:window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me=null,tab='serie',cur=null,openComp=null,csub='report',delId=null,pend=null,live=false;
@@ -80,10 +81,10 @@ async function load(){
   const q=(t,f)=>sb.from(t).select(f||'*');
   const rs=await Promise.all([
     q('competitions').order('starts_at',{ascending:false}),q('teams').order('name'),q('series').order('name'),
-    q('series_competitions'),q('competition_members').eq('user_id',me.id),q('competition_scores'),
+    q('competition_members').eq('user_id',me.id),q('competition_scores'),
     q('catches').order('created_at',{ascending:false}).limit(300)]);
-  const [c,t,s,sc,m,sco,ca]=rs;
-  D={comps:c.data||[],teams:t.data||[],series:s.data||[],sc:sc.data||[],mem:m.data||[],scores:sco.data||[],catches:ca.data||[],
+  const [c,t,s,m,sco,ca]=rs;
+  D={comps:c.data||[],teams:t.data||[],series:s.data||[],mem:m.data||[],scores:sco.data||[],catches:ca.data||[],
      err:(rs.find(r=>r.error)||{error:{message:''}}).error?.message||''};
   if(!D.teams.some(t=>t.created_by===me.id)){   // varje konto är ett lag: skapa det automatiskt
     const nm=me.user_metadata?.name||me.email.split('@')[0];
@@ -93,15 +94,15 @@ async function load(){
     else D.teams=(await sb.from('teams').select('*').order('name')).data||[];
   }
   if(!D.series.find(x=>x.id==cur))cur=D.series[0]?.id||null;
-  if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},()=>{if(tab==='serie'||(tab==='comps'&&openComp&&csub!=='report'))load()}).subscribe()}
+  if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},()=>{if(document.querySelector('details[open]'))return;if(tab==='serie'&&!(openComp&&csub==='report'))load()}).subscribe()}
   render();
 }
 function render(){
   if(SETUP)return;
   if(!me){$('v').innerHTML=vAuth();$('n').innerHTML='';return}
-  if(!(tab==='comps'&&openComp&&csub==='report'))pend=null;
-  $('v').innerHTML=(D.err?`<div class="card err">${esc(D.err)}</div>`:'')+{serie:vSerie,comps:vComps,catch:vCatch,feed:vFeed,teams:vTeams}[tab]();
-  const inComp=tab==='comps'&&openComp&&D.comps.find(c=>c.id==openComp);   // helskärm inne i en tävling
+  if(!(tab==='serie'&&openComp&&csub==='report'))pend=null;
+  $('v').innerHTML=(D.err?`<div class="card err">${esc(D.err)}</div>`:'')+{serie:vSerie,teams:vTeams}[tab]();
+  const inComp=tab==='serie'&&openComp&&D.comps.find(c=>c.id==openComp);   // helskärm inne i en tävling
   $('ttl').style.display=inComp?'none':'';$('n').style.display=inComp?'none':'';
   $('n').innerHTML=tabs.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="tab='${t[0]}';openComp=null;render()">${t[1]}</button>`).join('');
   fillCodes();
@@ -122,9 +123,7 @@ function cmpScore(a,b){
   return 0;
 }
 function standings(s){
-  const ids=D.sc.filter(x=>x.series_id==s.id).map(x=>x.competition_id);
-  const cs=D.comps.filter(c=>ids.includes(c.id)&&c.starts_at.slice(0,10)>=s.starts_on&&c.starts_at.slice(0,10)<=s.ends_on)
-    .sort((a,b)=>a.starts_at.localeCompare(b.starts_at));
+  const cs=D.comps.filter(c=>c.series_id==s.id).sort((a,b)=>a.starts_at.localeCompare(b.starts_at));
   const per=cs.map(c=>{
     const b=D.scores.filter(x=>x.competition_id==c.id).map(x=>({t:x.team_id,s:+x.score,top:(x.top||[]).map(Number)})).sort(cmpScore);
     const out={};let prev=null,pp=0;
@@ -135,19 +134,26 @@ function standings(s){
   return{cs,rows};
 }
 function vSerie(){
+  if(openComp&&D.comps.find(c=>c.id==openComp))return vCompPage();
   const s=D.series.find(x=>x.id==cur);
   let h=`<div class="card"><label style="margin-top:0">Serie</label><select onchange="cur=this.value;render()">${D.series.map(x=>`<option value="${x.id}" ${x.id==cur?'selected':''}>${esc(x.name)}</option>`).join('')||'<option>Ingen serie än</option>'}</select></div>`;
   if(s){
     const{cs,rows}=standings(s);
     h+=`<div class="card"><h2>Ställning</h2><div class="sc"><table><tr><th>#</th><th class="l">Lag</th>${cs.map(c=>`<th>${esc(c.name)}</th>`).join('')}<th>Totalt</th></tr>
     ${rows.map((r,i)=>`<tr class="${i==0?'p1':''}"><td>${i+1}</td><td class="l">${esc(r.t)}</td>${r.p.map(p=>`<td>${p}</td>`).join('')}<td class="t">${r.sum}</td></tr>`).join('')}</table></div>
-    ${cs.length?'':'<p class="mut">Inga tävlingar i serien än.</p>'}<p class="mut">Poäng per placering: ${s.points.join(', ')}. Lika resultat delar placering.</p></div>`;
-    if(s.created_by===me.id)h+=`<div class="card"><h2>Tävlingar som räknas</h2>${D.comps.map(c=>`<label style="display:flex;gap:8px;align-items:center;color:var(--tx);font-size:15px"><input type="checkbox" style="width:auto" onchange="togComp('${c.id}',this.checked)" ${D.sc.some(x=>x.series_id==s.id&&x.competition_id==c.id)?'checked':''}> ${esc(c.name)} <span class="mut">${fmt(c.starts_at)}</span></label>`).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
+    ${cs.length?'':'<p class="mut">Inga tävlingar i serien än.</p>'}<p class="mut">Poäng per placering: ${s.points.join(', ')}. Lika resultat delar placering.</p></div>
+    <div class="card"><h2>Tävlingar i serien</h2>${[...cs].reverse().map(c=>{
+      const m=D.mem.find(x=>x.competition_id==c.id);
+      return `<div class="item" onclick="openComp='${c.id}';csub='report';render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
+    if(s.created_by===me.id)h+=`<details class="card"><summary><b>+ Ny tävling i serien</b></summary><label>Namn</label><input id="cn">
+      <label>Start</label><input type="datetime-local" id="cs"><label>Slut</label><input type="datetime-local" id="ce">
+      <p class="mut">Räknas som totala längden på lagets 5 största fiskar. Du blir admin för tävlingen och kan ta bort fångster.</p>
+      <button onclick="addComp()">Skapa tävling</button><div id="cerr" class="err"></div></details>`;
   }
-  return h+`<div class="card"><h2>Ny serie</h2><label>Namn</label><input id="sn">
+  return h+`<details class="card"><summary><b>+ Ny serie</b></summary><label>Namn</label><input id="sn">
   <div class="row"><div><label>Från</label><input type="date" id="sf"></div><div><label>Till</label><input type="date" id="st"></div></div>
   <label>Poäng per placering</label><input id="sp" value="10,8,6,5,4,3,2,1">
-  <button onclick="addSeries()">Skapa serie</button><div id="se" class="err"></div></div>`;
+  <button onclick="addSeries()">Skapa serie</button><div id="se" class="err"></div></details>`;
 }
 async function addSeries(){
   const name=$('sn').value.trim(),a=$('sf').value,b=$('st').value,pts=$('sp').value.split(',').map(x=>+x.trim()||0);
@@ -156,14 +162,7 @@ async function addSeries(){
   if(r.error){$('se').textContent=r.error.message;return}
   cur=r.data.id;await load();
 }
-async function togComp(cid,on){
-  const r=on?await sb.from('series_competitions').insert({series_id:cur,competition_id:cid}):await sb.from('series_competitions').delete().eq('series_id',cur).eq('competition_id',cid);
-  if(r.error)alert(r.error.message);
-  await load();
-}
-
-// ---- Tävlingar ----
-function vComps(){return openComp&&D.comps.find(c=>c.id==openComp)?vCompPage():vCompList()}
+// ---- Tävlingar (ligger inne i en serie) ----
 function vJoin(){
   const c=D.comps.find(x=>x.id==openComp);
   return myTeam()?`<div class="card"><h2>Gå med i ${esc(c.name)}</h2><p class="mut">Du deltar som ${esc(myTeam().name)}.</p><button onclick="joinC('${c.id}')">Gå med</button></div>`:'<div class="card">Ditt lag skapas, ladda om sidan.</div>';
@@ -184,30 +183,17 @@ function vCompPage(){
   const c=D.comps.find(x=>x.id==openComp),m=D.mem.find(x=>x.competition_id==c.id),admin=c.created_by===me.id;
   const subs=[['report','Rapportera'],['feed','Flöde'],['map','Karta'],['board','Ställning']];
   const body=csub=='report'?vCatch():(csub=='feed'||csub=='map')?vFeed():vBoard(c);
-  return `<div class="card"><button class="sec" style="margin-top:0" onclick="openComp=null;render()">← Alla tävlingar</button>
+  return `<div class="card"><button class="sec" style="margin-top:0" onclick="openComp=null;render()">← Tillbaka till serien</button>
   <h2 style="margin-top:12px">${esc(c.name)} ${admin?'🛡️':''}</h2><div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · 5 största fiskarna räknas</div>
   <div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}
   <div class="row">${subs.map(s=>`<button class="${csub==s[0]?'':'sec'}" style="padding:9px 2px;font-size:13px" onclick="csub='${s[0]}';render()">${s[1]}</button>`).join('')}</div></div>${body}${admin?adminBox(c):''}`;
 }
-function vCompList(){
-  const opts=D.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
-  return `<div class="card"><h2>Ny tävling</h2><label>Namn</label><input id="cn">
-  <label>Start</label><input type="datetime-local" id="cs"><label>Slut</label><input type="datetime-local" id="ce">
-  <p class="mut">Räknas som totala längden på lagets 5 största fiskar. Vid lika avgör största fisken, sedan näst största och så vidare.</p>
-  <button onclick="addComp()">Skapa tävling</button><div id="cerr" class="err"></div>
-  <p class="mut">Du blir admin för tävlingen och kan ta bort fångster.</p></div>
-  <div class="card"><h2>Tävlingar</h2>${D.comps.map(c=>{
-    const m=D.mem.find(x=>x.competition_id==c.id),rows=D.scores.filter(x=>x.competition_id==c.id).sort((a,b)=>b.score-a.score);
-    return `<div class="item" onclick="openComp='${c.id}';csub='report';render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · 5 största räknas</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>
-    ${openComp==c.id?`<div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score}</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div>
-    ${m?'':(D.teams.length?`<label>Gå med som lag</label><select id="jt-${c.id}">${opts}</select><button onclick="joinC('${c.id}')">Gå med</button>`:'<p class="mut">Skapa ett lag i fliken Lag först.</p>')}`:''}`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
-}
 async function addComp(){
   const name=$('cn').value.trim(),a=$('cs').value,b=$('ce').value,e=$('cerr');
   if(!name||!a||!b){e.textContent='Fyll i namn, start och slut.';return}
-  const r=await sb.from('competitions').insert({name,starts_at:new Date(a).toISOString(),ends_at:new Date(b).toISOString(),metric:'length'}).select().single();
+  if(!cur){e.textContent='Skapa en serie först.';return}
+  const r=await sb.from('competitions').insert({name,series_id:cur,starts_at:new Date(a).toISOString(),ends_at:new Date(b).toISOString(),metric:'length'});
   if(r.error){e.textContent=r.error.message;return}
-  if(cur&&D.series.find(x=>x.id==cur&&x.created_by===me.id))await sb.from('series_competitions').insert({series_id:cur,competition_id:r.data.id});
   await load();
 }
 async function joinC(id){
@@ -222,7 +208,7 @@ function vCatch(){
   return `<div class="card"><h2>Registrera fångst</h2>
   <input type="hidden" id="kc" value="${openComp}">
   <div class="row"><div><label>Art</label><input id="ks" value="Abborre"></div><div><label>Längd (cm)</label><input id="kl" type="number" inputmode="numeric"></div></div>
-  <p class="mut">Ha tävlingens kod (se fliken Tävlingar) synlig i bilden tillsammans med fisken.</p>
+  <p class="mut">Ha tävlingens kod (visas överst här) synlig i bilden tillsammans med fisken.</p>
   <label>Foto på fångsten (krävs)</label><input id="kp" type="file" accept="image/*" capture="environment" onchange="gotPhoto(this)">
   <div id="km" class="mut" style="margin-top:6px">Ingen bild vald.</div>
   <button onclick="addCatch()">Spara fångst</button><div id="ke" class="err"></div></div>`;

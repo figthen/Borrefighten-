@@ -2,35 +2,39 @@
 <html lang="sv"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Borrefighten</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f3f7f6;--card:#fff;--tx:#14262b;--mut:#5b6e73;--ac:#0f766e;--ac2:#e2f2ef;--bd:#d6e1df;--gold:#b7791f;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#0d1a1d;--card:#15262a;--tx:#e8f1f0;--mut:#93a8ac;--ac:#2dd4bf;--ac2:#173a38;--bd:#27403f;--gold:#f6c453;color-scheme:dark}}
+:root{--bg:#F4EDE0;--card:#FFFAF0;--tx:#1F1A14;--mut:#6B5D4B;--ac:#C2410C;--ac2:#EADFCB;--bd:#D9CDB6;--ink:#1F1A14;color-scheme:light}
 *{box-sizing:border-box}
-body{margin:0 auto;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px 14px 84px;max-width:640px}
-h1{font-size:22px;margin:4px 0 12px}h2{font-size:17px;margin:0 0 10px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
-label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
-input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+body{margin:0 auto;background:var(--bg);color:var(--tx);font:15px/1.35 Barlow,system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px 16px 96px;max-width:640px}
+.cond,h1,h2{font-family:'Barlow Condensed',Barlow,sans-serif}
+#ttl{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 0 12px}
+h1{font-size:38px;line-height:1;font-weight:700;letter-spacing:.01em;text-transform:uppercase;margin:0}
+h2{font-size:20px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:0 0 10px}
+.card{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:8px 0 3px}
+input,select{width:100%;padding:11px 12px;border:2px solid var(--ink);border-radius:8px;background:var(--card);color:var(--tx);font:inherit;font-weight:500}
 .row{display:flex;gap:8px}.row>*{flex:1}
-button{background:var(--ac);color:var(--bg);border:0;border-radius:10px;padding:11px 14px;font:inherit;font-weight:600;margin-top:10px;width:100%}
-button.sec{background:var(--ac2);color:var(--ac)}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:12px 14px;font:inherit;font-weight:600;margin-top:10px;width:100%}
+button.sec{background:var(--ac2);color:var(--ink)}
 .sc{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--bd);white-space:nowrap}
 th{color:var(--mut);font-weight:600;font-size:12px}td.l,th.l{text-align:left}
 td.t{font-weight:700;color:var(--ac)}
-.p1 td:first-child{color:var(--gold);font-weight:800}
 .mut{color:var(--mut);font-size:13px}
-.item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--bd)}
 .item:last-child{border:0}
+.dblk{width:48px;height:50px;flex:none;border-radius:8px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dblk b{font-family:'Barlow Condensed',sans-serif;font-size:22px;line-height:1}.dblk span{font-size:11px;letter-spacing:.06em}
 .thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;margin-right:10px;vertical-align:middle}
-.err{color:#c0392b;font-size:13px;margin-top:6px}.ok{color:var(--ac);font-size:13px}a{color:var(--ac)}
+.err{color:#B42318;font-size:13px;margin-top:6px}.ok{color:#2F6B3A;font-size:13px}a{color:var(--ac);font-weight:600}
 summary{cursor:pointer;list-style-position:inside}details[open] summary{margin-bottom:6px}
-nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd)}
-nav button{margin:0;border-radius:0;background:none;color:var(--mut);font-size:12px;line-height:1.3;padding:8px 2px}
-nav button.on{color:var(--ac);box-shadow:inset 0 2px 0 var(--ac)}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--ink);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{margin:0;border-radius:0;background:none;color:#CFC3AE;font-size:13px;line-height:1.3;padding:0 2px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav button.on{color:#fff;box-shadow:inset 0 3px 0 var(--bg)}
 </style></head><body>
-<h1 id="ttl">🎣 Borrefighten</h1>
+<div id="ttl"><h1>Borrefighten</h1><span id="mt" class="mut"></span></div>
 <div id="v"></div>
 <nav id="n"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -43,7 +47,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'});
 const COL=['#0f766e','#d97706','#7c3aed','#dc2626','#2563eb','#db2777'];
-const tabs=[['serie','🏆<br>Serier'],['teams','👥<br>Lag']];
+const tabs=[['serie','<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></svg>Serier'],['teams','<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14.2c2.4.6 3.8 2.6 3.8 5.8"/></svg>Lag']];
 const SETUP=SUPABASE_URL.startsWith('DIN_');
 const sb=SETUP?null:window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me=null,tab='serie',cur=null,openComp=null,csub='report',delId=null,pend=null,live=false;
@@ -103,7 +107,7 @@ function render(){
   if(!(tab==='serie'&&openComp&&csub==='report'))pend=null;
   $('v').innerHTML=(D.err?`<div class="card err">${esc(D.err)}</div>`:'')+{serie:vSerie,teams:vTeams}[tab]();
   const inComp=tab==='serie'&&openComp&&D.comps.find(c=>c.id==openComp);   // helskärm inne i en tävling
-  $('ttl').style.display=inComp?'none':'';$('n').style.display=inComp?'none':'';
+  $('ttl').style.display=inComp?'none':'';$('mt').textContent=myTeam()?myTeam().name:'';$('n').style.display=inComp?'none':'';
   $('n').innerHTML=tabs.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="tab='${t[0]}';openComp=null;render()">${t[1]}</button>`).join('');
   fillCodes();
 }
@@ -111,7 +115,7 @@ async function fillCodes(){
   for(const el of document.querySelectorAll('[data-code]')){
     const c=D.comps.find(x=>x.id==el.dataset.code);if(!c)continue;
     const r=await sb.rpc('reveal_code',{c:c.id});
-    el.innerHTML=r.data?'🔑 Kod: <b>'+esc(r.data)+'</b>':'🔒 Koden visas '+fmt(new Date(c.starts_at)-300000);
+    el.innerHTML=r.data?'Kod: <b>'+esc(r.data)+'</b>':'Koden visas '+fmt(new Date(c.starts_at)-300000);
   }
 }
 
@@ -133,27 +137,49 @@ function standings(s){
   rows.sort((a,b)=>b.sum-a.sum);
   return{cs,rows};
 }
+function compStatus(c){
+  const n=Date.now(),a=new Date(c.starts_at),b=new Date(c.ends_at);
+  if(n<a)return 'Startar '+fmt(c.starts_at);
+  if(n>b)return 'Avslutad';
+  return 'Pågår, slutar '+b.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
+}
+function dateBlock(c){
+  const d=new Date(c.starts_at),n=Date.now(),live=n>=d&&n<=new Date(c.ends_at);
+  return `<div class="dblk" style="background:${live?'var(--ac)':'var(--ink)'}"><b>${d.getDate()}</b><span>${d.toLocaleDateString('sv-SE',{month:'short'}).replace('.','').toUpperCase()}</span></div>`;
+}
+function podium(rows){
+  const slots=[[1,84,'#1F1A14',34,'2:a'],[0,116,'#C2410C',44,'1:a'],[2,64,'#6B5D4B',30,'3:e']];
+  return '<div style="display:flex;align-items:flex-end;gap:8px">'+slots.filter(x=>rows[x[0]]).map(([i,h,bg,fs,lbl])=>
+    `<div style="flex:1;min-width:0;text-align:center"><div style="font-weight:600;font-size:13px;margin-bottom:6px;overflow-wrap:anywhere">${esc(rows[i].t)}</div><div style="height:${h}px;background:${bg};color:#fff;border-radius:8px 8px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span class="cond" style="font-size:${fs}px;line-height:1">${rows[i].sum}</span><span style="font-size:12px">${lbl}</span></div></div>`).join('')+'</div>';
+}
 function vSerie(){
   if(openComp&&D.comps.find(c=>c.id==openComp))return vCompPage();
   const s=D.series.find(x=>x.id==cur);
   let h=`<div class="card"><label style="margin-top:0">Serie</label><select onchange="cur=this.value;render()">${D.series.map(x=>`<option value="${x.id}" ${x.id==cur?'selected':''}>${esc(x.name)}</option>`).join('')||'<option>Ingen serie än</option>'}</select></div>`;
   if(s){
     const{cs,rows}=standings(s);
-    h+=`<div class="card"><h2>Ställning</h2><div class="sc"><table><tr><th>#</th><th class="l">Lag</th>${cs.map(c=>`<th>${esc(c.name)}</th>`).join('')}<th>Totalt</th></tr>
-    ${rows.map((r,i)=>`<tr class="${i==0?'p1':''}"><td>${i+1}</td><td class="l">${esc(r.t)}</td>${r.p.map(p=>`<td>${p}</td>`).join('')}<td class="t">${r.sum}</td></tr>`).join('')}</table></div>
-    ${cs.length?'':'<p class="mut">Inga tävlingar i serien än.</p>'}<p class="mut">Poäng per placering: ${s.points.join(', ')}. Lika resultat delar placering.</p></div>
-    <div class="card"><h2>Tävlingar i serien</h2>${[...cs].reverse().map(c=>{
+    h+=`<div class="card" style="padding:16px 14px 0;overflow:hidden"><h2 style="margin-bottom:12px">Ställning</h2>${podium(rows)}${rows.slice(3).map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;margin:0 -14px;background:var(--ac2);border-top:2px solid var(--ink)"><span><b class="cond" style="font-size:18px;margin-right:10px">${i+4}</b>${esc(r.t)}</span><b class="cond" style="font-size:22px">${r.sum}</b></div>`).join('')}</div>
+    <details class="card"><summary><b>Poäng per tävling</b></summary><div class="sc"><table><tr><th>#</th><th class="l">Lag</th>${cs.map(c=>`<th>${esc(c.name)}</th>`).join('')}<th>Totalt</th></tr>
+    ${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="l">${esc(r.t)}</td>${r.p.map(p=>`<td>${p}</td>`).join('')}<td class="t">${r.sum}</td></tr>`).join('')}</table></div>
+    ${cs.length?'':'<p class="mut">Inga tävlingar i serien än.</p>'}<p class="mut">Poäng per placering: ${s.points.join(', ')}. Vid lika summa i en tävling avgör största fisken, sedan näst största och så vidare.</p></details>
+    <div class="card"><h2>Tävlingar</h2>${[...cs].reverse().map(c=>{
       const m=D.mem.find(x=>x.competition_id==c.id);
-      return `<div class="item" onclick="openComp='${c.id}';csub='report';render()"><div><b>${esc(c.name)}</b> ${c.created_by===me.id?'🛡️':''}<div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
+      return `<div class="item" style="cursor:pointer" onclick="openComp='${c.id}';csub='report';render()">${dateBlock(c)}<div style="flex:1;min-width:0"><b>${esc(c.name)}</b>${c.created_by===me.id?' <span class="mut">(admin)</span>':''}<div class="mut">${compStatus(c)}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
     if(s.created_by===me.id)h+=`<details class="card"><summary><b>+ Ny tävling i serien</b></summary><label>Namn</label><input id="cn">
       <label>Start</label><input type="datetime-local" id="cs"><label>Slut</label><input type="datetime-local" id="ce">
       <p class="mut">Räknas som totala längden på lagets 5 största fiskar. Du blir admin för tävlingen och kan ta bort fångster.</p>
       <button onclick="addComp()">Skapa tävling</button><div id="cerr" class="err"></div></details>`;
   }
+  if(s&&s.created_by===me.id)h+=`<div class="card"><h2>Admin</h2>${delId==='ser'+s.id?`<p class="mut">Tar bort serien med alla dess tävlingar och fångster. Det går inte att ångra.</p><button style="background:#c0392b;color:#fff" onclick="delSeries('${s.id}')">Ja, ta bort serien</button><button class="sec" onclick="delId=null;render()">Avbryt</button>`:`<button class="sec" onclick="delId='ser${s.id}';render()">Ta bort serien</button>`}</div>`;
   return h+`<details class="card"><summary><b>+ Ny serie</b></summary><label>Namn</label><input id="sn">
   <div class="row"><div><label>Från</label><input type="date" id="sf"></div><div><label>Till</label><input type="date" id="st"></div></div>
   <label>Poäng per placering</label><input id="sp" value="10,8,6,5,4,3,2,1">
   <button onclick="addSeries()">Skapa serie</button><div id="se" class="err"></div></details>`;
+}
+async function delSeries(id){
+  const r=await sb.rpc('delete_series',{s:id});
+  if(r.error){alert(r.error.message);return}
+  delId=null;cur=null;openComp=null;await load();
 }
 async function addSeries(){
   const name=$('sn').value.trim(),a=$('sf').value,b=$('st').value,pts=$('sp').value.split(',').map(x=>+x.trim()||0);
@@ -172,7 +198,7 @@ function vBoard(c){
   return `<div class="card"><h2>Ställning i tävlingen</h2><p class="mut">Totala längden på lagets 5 största fiskar. Vid lika avgör största fisken, sedan näst största och så vidare.</p><div class="sc"><table>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="l">${esc(teamName(x.team_id))}</td><td class="t">${+x.score} cm</td></tr>`).join('')||'<tr><td class="mut">Inga fångster än</td></tr>'}</table></div></div>`;
 }
 function adminBox(c){
-  return `<div class="card"><h2>Admin 🛡️</h2>${delId==='comp'+c.id?`<p class="mut">Tar bort tävlingen med alla fångster. Det går inte att ångra.</p><button style="background:#c0392b;color:#fff" onclick="delComp('${c.id}')">Ja, ta bort tävlingen</button><button class="sec" onclick="delId=null;render()">Avbryt</button>`:`<button class="sec" onclick="delId='comp${c.id}';render()">🗑 Ta bort tävlingen</button>`}</div>`;
+  return `<div class="card"><h2>Admin</h2>${delId==='comp'+c.id?`<p class="mut">Tar bort tävlingen med alla fångster. Det går inte att ångra.</p><button style="background:#c0392b;color:#fff" onclick="delComp('${c.id}')">Ja, ta bort tävlingen</button><button class="sec" onclick="delId=null;render()">Avbryt</button>`:`<button class="sec" onclick="delId='comp${c.id}';render()">Ta bort tävlingen</button>`}</div>`;
 }
 async function delComp(id){
   const r=await sb.rpc('delete_competition',{c:id});
@@ -184,7 +210,7 @@ function vCompPage(){
   const subs=[['report','Rapportera'],['feed','Flöde'],['map','Karta'],['board','Ställning']];
   const body=csub=='report'?vCatch():(csub=='feed'||csub=='map')?vFeed():vBoard(c);
   return `<div class="card"><button class="sec" style="margin-top:0" onclick="openComp=null;render()">← Tillbaka till serien</button>
-  <h2 style="margin-top:12px">${esc(c.name)} ${admin?'🛡️':''}</h2><div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · 5 största fiskarna räknas</div>
+  <h2 style="margin-top:12px">${esc(c.name)} ${admin?'<span class="mut">(admin)</span>':''}</h2><div class="mut">${fmt(c.starts_at)} – ${fmt(c.ends_at)} · 5 största fiskarna räknas</div>
   <div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}
   <div class="row">${subs.map(s=>`<button class="${csub==s[0]?'':'sec'}" style="padding:9px 2px;font-size:13px" onclick="csub='${s[0]}';render()">${s[1]}</button>`).join('')}</div></div>${body}${admin?adminBox(c):''}`;
 }
@@ -222,7 +248,7 @@ function gotPhoto(inp){
     c.toBlob(b=>{pend={blob:b,url:URL.createObjectURL(b),loc:null};
       const th=`<img class="thumb" src="${pend.url}" alt=""> `;$('km').innerHTML=th+'Hämtar position …';
       if(!navigator.geolocation){$('km').innerHTML=th+'<span class="mut">Ingen position, sparas utan plats.</span>';return}
-      navigator.geolocation.getCurrentPosition(p=>{pend.loc={lat:p.coords.latitude,lon:p.coords.longitude};$('km').innerHTML=th+'<span class="ok">📍 Position hittad</span>'},
+      navigator.geolocation.getCurrentPosition(p=>{pend.loc={lat:p.coords.latitude,lon:p.coords.longitude};$('km').innerHTML=th+'<span class="ok">Position hittad</span>'},
         ()=>{$('km').innerHTML=th+'<span class="mut">Ingen position delad, sparas utan plats.</span>'},{enableHighAccuracy:true,timeout:15000});
     },'image/jpeg',.8)};
   img.onerror=()=>{$('km').textContent='Kunde inte läsa bilden.'};
@@ -260,7 +286,7 @@ function mapSvg(list){
 }
 function delBtn(x){
   return x.id==delId?`<div style="margin-top:6px"><input id="dw" placeholder="Anledning, t.ex. fusk"><button style="background:#c0392b;color:#fff" onclick="doDel('${x.id}')">Bekräfta borttagning</button><button class="sec" onclick="delId=null;render()">Avbryt</button></div>`
-    :`<button class="sec" onclick="delId='${x.id}';render()">🗑 Ta bort</button>`;
+    :`<button class="sec" onclick="delId='${x.id}';render()">Ta bort</button>`;
 }
 async function doDel(id){
   const r=await sb.rpc('remove_catch',{id_in:id,reason:$('dw').value.trim()});
@@ -272,12 +298,12 @@ function vFeed(){
   const list=D.catches.filter(x=>x.competition_id==fc);
   const head='';
   if(csub=='map')return `<div class="card"><h2>Fångstkarta</h2>${mapSvg(list)}</div>`;
-  return head+(list.map(x=>`<div class="card" style="display:flex;gap:12px;${x.removed_at?'opacity:.55':''}"><a href="${photoUrl(x.photo_path)}" target="_blank"><img src="${photoUrl(x.photo_path)}" alt="" style="width:96px;height:96px;flex:none;border-radius:10px;object-fit:cover"></a><div><b>${esc(teamName(x.team_id))}</b><div style="font-size:20px;font-weight:700;color:var(--ac)">${+x.length_cm} cm</div><div class="mut">${esc(x.species)}<br>${fmt(x.created_at)}</div>${x.lat!=null?`<div class="mut">📍 <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=15/${x.lat}/${x.lon}">Visa plats</a></div>`:''}${x.removed_at?`<div class="err">Borttagen: ${esc(x.removed_reason||'ingen anledning angiven')}</div>`:(admin?delBtn(x):'')}</div></div>`).join('')||'<div class="card mut">Inga fångster än.</div>');
+  return head+(list.map(x=>`<div class="card" style="display:flex;gap:12px;${x.removed_at?'opacity:.55':''}"><a href="${photoUrl(x.photo_path)}" target="_blank"><img src="${photoUrl(x.photo_path)}" alt="" style="width:96px;height:96px;flex:none;border-radius:8px;object-fit:cover"></a><div><b>${esc(teamName(x.team_id))}</b><div class="cond" style="font-size:34px;line-height:1.05;color:var(--ac)">${+x.length_cm} cm</div><div class="mut">${esc(x.species)}<br>${fmt(x.created_at)}</div>${x.lat!=null?`<div class="mut"><a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=15/${x.lat}/${x.lon}">Visa plats</a></div>`:''}${x.removed_at?`<div class="err">Borttagen: ${esc(x.removed_reason||'ingen anledning angiven')}</div>`:(admin?delBtn(x):'')}</div></div>`).join('')||'<div class="card mut">Inga fångster än.</div>');
 }
 
 // ---- Lag ----
 function vTeams(){
-  return `<div class="card"><h2>Lag</h2><p class="mut">Ditt lag: <b>${esc(myTeam()?.name||'')}</b></p>${D.teams.map(t=>`<div class="item" style="align-items:center"><span>${esc(t.name)}</span>${(t.created_by!==me.id||t.id===myTeam().id)?'':(delId==='team'+t.id?`<span><button style="width:auto;margin:0;padding:6px 10px;background:#c0392b;color:#fff" onclick="delTeam('${t.id}')">Bekräfta</button> <button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId=null;render()">Avbryt</button></span>`:`<button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId='team${t.id}';render()">🗑</button>`)}</div>`).join('')||'<p class="mut">Inga lag än.</p>'}
+  return `<div class="card"><h2>Lag</h2><p class="mut">Ditt lag: <b>${esc(myTeam()?.name||'')}</b></p>${D.teams.map(t=>`<div class="item" style="align-items:center"><span>${esc(t.name)}</span>${(t.created_by!==me.id||t.id===myTeam().id)?'':(delId==='team'+t.id?`<span><button style="width:auto;margin:0;padding:6px 10px;background:#c0392b;color:#fff" onclick="delTeam('${t.id}')">Bekräfta</button> <button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId=null;render()">Avbryt</button></span>`:`<button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId='team${t.id}';render()">Ta bort</button>`)}</div>`).join('')||'<p class="mut">Inga lag än.</p>'}
   <p class="mut">Varje konto är ett lag. Gamla testlag du skapat kan du ta bort med papperskorgen, och då tas lagets fångster och anmälningar bort.</p>
   </div>
   <div class="card"><p class="mut">Inloggad som ${esc(me.email)}</p><button class="sec" onclick="logout()">Logga ut</button></div>`;

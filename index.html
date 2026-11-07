@@ -243,9 +243,8 @@ function vCatch(){
   <div class="row"><div><label>Art</label><input id="ks" value="Abborre"></div><div><label>Längd (cm)</label><input id="kl" type="number" inputmode="numeric"></div></div>
   <p class="mut">Ha tävlingens kod (visas överst här) synlig i bilden tillsammans med fisken.</p>
   <label>Foto på fångsten (krävs)</label>
-  <div class="row"><button type="button" style="margin-top:0" onclick="$('kp1').click()">Ta foto</button><button type="button" class="sec" style="margin-top:0" onclick="$('kp2').click()">Välj från galleriet</button></div>
+  <button type="button" style="margin-top:0;width:100%" onclick="$('kp1').click()">Ta foto</button>
   <input id="kp1" type="file" accept="image/*" capture="environment" onchange="gotPhoto(this)" hidden>
-  <input id="kp2" type="file" accept="image/*" onchange="gotPhoto(this)" hidden>
   <div id="km" class="mut" style="margin-top:6px">Ingen bild vald.</div>
   <button onclick="addCatch()">Spara fångst</button><div id="ke" class="err"></div></div>`;
 }

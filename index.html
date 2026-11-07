@@ -134,7 +134,11 @@ function standings(s){
     const out={};let prev=null,pp=0;
     b.forEach((x,i)=>{const k=x.s+'/'+x.top.join(','),p=k===prev?pp:(s.points[i]||0);out[x.t]=p;prev=k;pp=p});
     return out});
-  const rows=D.teams.map(t=>{const p=per.map(o=>o[t.id]||0);return{t:t.name,p,sum:p.reduce((a,b)=>a+b,0)}});
+  const n=s.best_n;
+  const rows=D.teams.map(t=>{
+    const p=per.map(o=>o[t.id]||0);let used=p.map(()=>true);
+    if(n&&p.length>n){used=p.map(()=>false);p.map((v,i)=>i).sort((a,b)=>p[b]-p[a]).slice(0,n).forEach(i=>used[i]=true)}
+    return{t:t.name,p,used,sum:p.reduce((a,v,i)=>a+(used[i]?v:0),0)}});
   rows.sort((a,b)=>b.sum-a.sum);
   return{cs,rows};
 }
@@ -161,8 +165,8 @@ function vSerie(){
     const{cs,rows}=standings(s);
     h+=`<div class="card" style="padding:16px 14px 0;overflow:hidden"><h2 style="margin-bottom:12px">Ställning</h2>${podium(rows)}${rows.slice(3).map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;margin:0 -14px;background:var(--ac2);border-top:2px solid var(--ink)"><span><b class="cond" style="font-size:18px;margin-right:10px">${i+4}</b>${esc(r.t)}</span><b class="cond" style="font-size:22px">${r.sum}</b></div>`).join('')}</div>
     <details class="card"><summary><b>Poäng per tävling</b></summary><div class="sc"><table><tr><th>#</th><th class="l">Lag</th>${cs.map(c=>`<th>${esc(c.name)}</th>`).join('')}<th>Totalt</th></tr>
-    ${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="l">${esc(r.t)}</td>${r.p.map(p=>`<td>${p}</td>`).join('')}<td class="t">${r.sum}</td></tr>`).join('')}</table></div>
-    ${cs.length?'':'<p class="mut">Inga tävlingar i serien än.</p>'}<p class="mut">Poäng per placering: ${s.points.join(', ')}. Vid lika summa i en tävling avgör största fisken, sedan näst största och så vidare.</p></details>
+    ${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="l">${esc(r.t)}</td>${r.p.map((p,j)=>`<td style="${r.used[j]?'':'color:var(--mut);text-decoration:line-through'}">${p}</td>`).join('')}<td class="t">${r.sum}</td></tr>`).join('')}</table></div>
+    ${cs.length?'':'<p class="mut">Inga tävlingar i serien än.</p>'}<p class="mut">Poäng per placering: ${s.points.join(', ')}. ${s.best_n?'Lagens '+s.best_n+' bästa tävlingar räknas (överstrukna poäng räknas inte).':'Alla tävlingar räknas.'} Vid lika summa i en tävling avgör största fisken, sedan näst största och så vidare.</p></details>
     <div class="card"><h2>Tävlingar</h2>${[...cs].reverse().map(c=>{
       const m=D.mem.find(x=>x.competition_id==c.id);
       return `<div class="item" style="cursor:pointer" onclick="openComp='${c.id}';csub='report';render()">${dateBlock(c)}<div style="flex:1;min-width:0"><b>${esc(c.name)}</b>${c.created_by===me.id?' <span class="mut">(admin)</span>':''}<div class="mut">${compStatus(c)}</div><div class="mut" data-code="${c.id}"></div>${m?`<div class="ok">Du är med som ${esc(teamName(m.team_id))}</div>`:''}</div><span class="mut">›</span></div>`}).join('')||'<p class="mut">Inga tävlingar än.</p>'}</div>`;
@@ -175,6 +179,8 @@ function vSerie(){
   return h+`<details class="card"><summary><b>+ Ny serie</b></summary><label>Namn</label><input id="sn">
   <div class="row"><div><label>Från</label><input type="date" id="sf"></div><div><label>Till</label><input type="date" id="st"></div></div>
   <label>Poäng per placering</label><input id="sp" value="10,8,6,5,4,3,2,1">
+  <label>Vilka tävlingar räknas</label><select id="sb" onchange="$('sbn').style.display=this.value==='best'?'':'none'"><option value="all">Alla tävlingar</option><option value="best">Lagets bästa placeringar</option></select>
+  <div id="sbn" style="display:none"><label>Antal bästa placeringar som räknas</label><input id="sbv" type="number" inputmode="numeric" min="1" value="4"></div>
   <button onclick="addSeries()">Skapa serie</button><div id="se" class="err"></div></details>`;
 }
 async function delSeries(id){
@@ -185,7 +191,7 @@ async function delSeries(id){
 async function addSeries(){
   const name=$('sn').value.trim(),a=$('sf').value,b=$('st').value,pts=$('sp').value.split(',').map(x=>+x.trim()||0);
   if(!name||!a||!b){$('se').textContent='Fyll i namn och period.';return}
-  const r=await sb.from('series').insert({name,starts_on:a,ends_on:b,points:pts}).select().single();
+  const r=await sb.from('series').insert({name,starts_on:a,ends_on:b,points:pts,best_n:$('sb').value==='best'?Math.max(1,parseInt($('sbv').value)||4):null}).select().single();
   if(r.error){$('se').textContent=r.error.message;return}
   cur=r.data.id;await load();
 }

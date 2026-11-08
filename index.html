@@ -30,11 +30,14 @@ td.t{font-weight:700;color:var(--ac)}
 .thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;margin-right:10px;vertical-align:middle}
 .err{color:#B42318;font-size:13px;margin-top:6px}.ok{color:#2F6B3A;font-size:13px}a{color:var(--ac);font-weight:600}
 summary{cursor:pointer;list-style-position:inside}details[open] summary{margin-bottom:6px}
+#toasts{position:fixed;left:16px;right:16px;top:calc(12px + env(safe-area-inset-top,0px));max-width:608px;margin:0 auto;z-index:20;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{pointer-events:auto;margin:0;width:100%;text-align:left;background:var(--ink);color:#fff;border-radius:12px;padding:12px 14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--ink);padding-bottom:env(safe-area-inset-bottom,0px)}
 nav button{margin:0;border-radius:0;background:none;color:#CFC3AE;font-size:13px;line-height:1.3;padding:0 2px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 nav button.on{color:#fff;box-shadow:inset 0 3px 0 var(--bg)}
 </style></head><body>
 <div id="ttl"><h1>Borrefighten</h1><span id="mt" class="mut"></span></div>
+<div id="toasts" aria-live="polite"></div>
 <div id="v"></div>
 <nav id="n"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -97,7 +100,7 @@ async function load(){
     else D.teams=(await sb.from('teams').select('*').order('name')).data||[];
   }
   if(!D.series.find(x=>x.id==cur))cur=D.series[0]?.id||null;
-  if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},()=>{if(document.querySelector('details[open]'))return;if(tab==='serie'&&!(openComp&&csub==='report'))load()}).subscribe()}
+  if(!live){live=true;sb.channel('catches').on('postgres_changes',{event:'*',schema:'public',table:'catches'},pl=>{notify(pl);if(document.querySelector('details[open]'))return;if(tab==='serie'&&!(openComp&&csub==='report'))load()}).subscribe()}
   render();
 }
 function render(){
@@ -110,6 +113,25 @@ function render(){
   $('n').innerHTML=tabs.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="tab='${t[0]}';openComp=null;render()">${t[1]}</button>`).join('');
   fillCodes();
 }
+// ---- Aviseringar när ett annat lag rapporterar i en tävling du är med i ----
+function toast(msg,comp){
+  const b=document.createElement('button');b.className='toast';b.textContent=msg;
+  b.onclick=()=>{b.remove();if(comp){tab='serie';openComp=comp;csub='feed';load()}};
+  $('toasts').appendChild(b);setTimeout(()=>b.remove(),8000);
+}
+function notify(pl){
+  try{
+    if(!me||pl.eventType!=='INSERT')return;
+    const x=pl.new;if(!x||x.user_id===me.id||x.removed_at)return;
+    if(!D.mem.some(m=>m.competition_id===x.competition_id))return;
+    const c=D.comps.find(k=>k.id===x.competition_id),t=D.teams.find(k=>k.id===x.team_id);
+    const msg=(t?t.name:'Ett lag')+' rapporterade '+(+x.length_cm)+' cm '+String(x.species||'fisk').toLowerCase()+(c?' i '+c.name:'');
+    toast(msg,x.competition_id);
+    if(navigator.vibrate)navigator.vibrate(200);
+    if(document.hidden&&'Notification' in window&&Notification.permission==='granted')new Notification('Borrefighten',{body:msg});
+  }catch(e){}
+}
+function enableNotes(){Notification.requestPermission().then(()=>render())}
 // Visar felet överst på sidan (alert döljs i vissa webbläsare).
 function fail(m){D.err=m;render();window.scrollTo(0,0)}
 async function fillCodes(){
@@ -243,8 +265,9 @@ function vCatch(){
   <div class="row"><div><label>Art</label><input id="ks" value="Abborre"></div><div><label>Längd (cm)</label><input id="kl" type="number" inputmode="numeric"></div></div>
   <p class="mut">Ha tävlingens kod (visas överst här) synlig i bilden tillsammans med fisken.</p>
   <label>Foto på fångsten (krävs)</label>
-  <button type="button" style="margin-top:0;width:100%" onclick="$('kp1').click()">Ta foto</button>
+  <div class="row"><button type="button" style="margin-top:0" onclick="$('kp1').click()">Ta foto</button><button type="button" class="sec" style="margin-top:0" onclick="$('kp2').click()">Välj från galleriet</button></div>
   <input id="kp1" type="file" accept="image/*" capture="environment" onchange="gotPhoto(this)" hidden>
+  <input id="kp2" type="file" accept="image/*" onchange="gotPhoto(this)" hidden>
   <div id="km" class="mut" style="margin-top:6px">Ingen bild vald.</div>
   <button onclick="addCatch()">Spara fångst</button><div id="ke" class="err"></div></div>`;
 }
@@ -301,6 +324,7 @@ function vTeams(){
   return `<div class="card"><h2>Lag</h2><p class="mut">Ditt lag: <b>${esc(myTeam()?.name||'')}</b></p>${D.teams.map(t=>`<div class="item" style="align-items:center"><span>${esc(t.name)}</span>${(t.created_by!==me.id||t.id===myTeam().id)?'':(delId==='team'+t.id?`<span><button style="width:auto;margin:0;padding:6px 10px;background:#c0392b;color:#fff" onclick="delTeam('${t.id}')">Bekräfta</button> <button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId=null;render()">Avbryt</button></span>`:`<button class="sec" style="width:auto;margin:0;padding:6px 10px" onclick="delId='team${t.id}';render()">Ta bort</button>`)}</div>`).join('')||'<p class="mut">Inga lag än.</p>'}
   <p class="mut">Varje konto är ett lag. Gamla testlag du skapat kan du ta bort med papperskorgen, och då tas lagets fångster och anmälningar bort.</p>
   </div>
+  <div class="card"><h2>Aviseringar</h2><p class="mut">Du får en avisering när ett annat lag rapporterar en fisk i en tävling du är med i. Den visas i appen medan den är öppen, och som en vanlig notis om du slår på den och appen ligger i bakgrunden. Är appen helt stängd aviseras du inte.</p>${'Notification' in window?`<button class="sec" ${Notification.permission==='granted'?'disabled':''} onclick="enableNotes()">${Notification.permission==='granted'?'Notiser är på':(Notification.permission==='denied'?'Notiser är blockerade i webbläsaren':'Slå på notiser')}</button>`:''}</div>
   <div class="card"><p class="mut">Inloggad som ${esc(me.email)}</p><button class="sec" onclick="logout()">Logga ut</button></div>`;
 }
 async function delTeam(id){
